@@ -295,4 +295,91 @@ export const useBookmarkedQuestionsQuery = (email: string) => {
   });
 };
 
+/**
+ * Hook to retrieve all active coding problems.
+ */
+export const useCodingProblemsQuery = () => {
+  return useQuery({
+    queryKey: ['coding', 'problems'],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<any[]>('/coding/problems');
+        return response.data;
+      } catch (err) {
+        // Fallback: import static codingProblems list from CodingView
+        const { codingProblems } = await import('../components/CodingView');
+        return codingProblems;
+      }
+    }
+  });
+};
+
+/**
+ * Mutation to execute/run code (Judge0 cluster testing).
+ */
+export const useRunCodeMutation = () => {
+  return useMutation({
+    mutationFn: async (payload: { problemId: string; language: string; codeContent: string; customInput?: string }) => {
+      const response = await apiClient.post('/coding/run', payload);
+      return response.data;
+    }
+  });
+};
+
+/**
+ * Mutation to submit code (final evaluation).
+ */
+export const useSubmitCodeMutation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (payload: { email: string; problemId: string; language: string; codeContent: string }) => {
+      const response = await apiClient.post('/coding/submit', payload);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate profile query to update readiness scores and dashboard
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.profile(variables.email) });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', variables.email] });
+      queryClient.invalidateQueries({ queryKey: ['coding', 'submissions', variables.email] });
+    }
+  });
+};
+
+/**
+ * Mutation to toggle problem bookmarks.
+ */
+export const useToggleCodingBookmarkMutation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (payload: { email: string; problemId: string }) => {
+      const response = await apiClient.post('/coding/bookmarks/toggle', payload);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['coding', 'bookmarks', variables.email] });
+    }
+  });
+};
+
+/**
+ * Hook to retrieve coding bookmarked problem IDs.
+ */
+export const useBookmarkedProblemsQuery = (email: string) => {
+  return useQuery({
+    queryKey: ['coding', 'bookmarks', email],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<string[]>(`/coding/bookmarks?email=${email}`);
+        return response.data;
+      } catch (err) {
+        return [] as string[];
+      }
+    },
+    enabled: !!email
+  });
+};
+
+
 

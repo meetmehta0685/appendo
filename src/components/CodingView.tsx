@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StudentProfile } from '../types';
+import { apiClient } from '../api/client';
+import { 
+  useCodingProblemsQuery, 
+  useRunCodeMutation, 
+  useSubmitCodeMutation, 
+  useToggleCodingBookmarkMutation, 
+  useBookmarkedProblemsQuery 
+} from '../api/queries';
 
 interface CodingViewProps {
   studentProfile: StudentProfile;
 }
 
-interface Problem {
+export interface Problem {
   id: string;
   title: string;
   difficulty: 'easy' | 'medium' | 'hard';
@@ -18,7 +26,7 @@ interface Problem {
   boilerplates: Record<'python' | 'java' | 'cpp', string>;
 }
 
-const codingProblems: Problem[] = [
+export const codingProblems: Problem[] = [
   {
     id: 'p1',
     title: 'Two Sum',
@@ -124,11 +132,42 @@ export const CodingView: React.FC<CodingViewProps> = ({ studentProfile }) => {
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompileSuccess, setIsCompileSuccess] = useState<boolean | null>(null);
-  const [solvedIds, setSolvedIds] = useState<string[]>(['p1']); // default Two Sum solved
+  
+  // Track solved and bookmarked problems using API sync
+  const [solvedIds, setSolvedIds] = useState<string[]>(['p1']);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
 
+  // API hooks for dynamic querying
+  const { data: dbProblems } = useCodingProblemsQuery();
+  const { data: dbBookmarks } = useBookmarkedProblemsQuery(studentProfile.personalEmail || '');
+  
+  const runMutation = useRunCodeMutation();
+  const submitMutation = useSubmitCodeMutation();
+  const toggleBookmarkMutation = useToggleCodingBookmarkMutation();
+
+  const activeProblemsList = (dbProblems && dbProblems.length > 0) ? dbProblems : codingProblems;
+
+  // Sync bookmarks from db query
+  useEffect(() => {
+    if (dbBookmarks) {
+      setBookmarkedIds(dbBookmarks);
+    }
+  }, [dbBookmarks]);
+
+  // Sync initial solved list from student profile subscores list of submissions if any
+  useEffect(() => {
+    apiClient.get<any[]>(`/coding/submissions?email=${studentProfile.personalEmail || ''}`)
+      .then(res => {
+        const solved = res.data.filter(s => s.status === 'accepted').map(s => s.problemId);
+        if (solved.length > 0) {
+          setSolvedIds(solved);
+        }
+      })
+      .catch(() => console.error("Failed to load submission history on init"));
+  }, [studentProfile]);
+
   // Filter problems list
-  const filteredProblems = codingProblems.filter(p => {
+  const filteredProblems = activeProblemsList.filter(p => {
     const matchTopic = selectedTopic === 'All' || p.topic === selectedTopic;
     const matchDiff = selectedDiff === 'All' || p.difficulty === selectedDiff;
     const matchComp = selectedCompany === 'All' || p.company === selectedCompany;
@@ -144,34 +183,71 @@ export const CodingView: React.FC<CodingViewProps> = ({ studentProfile }) => {
 
   const handleLanguageChange = (lang: 'python' | 'java' | 'cpp') => {
     setActiveLang(lang);
-    const activeProb = codingProblems.find(p => p.id === activeProblemId);
+    const activeProb = activeProblemsList.find(p => p.id === activeProblemId);
     if (activeProb) {
       setEditorCode(activeProb.boilerplates[lang]);
     }
   };
 
   const runCodeSimulation = () => {
-    setConsoleLogs(['Compiling and linking files...', 'Running test case 1 of 2...', 'Test Case 1: PASSED', 'Running test case 2 of 2...', 'Test Case 2: PASSED', 'All local tests passed successfully!']);
-    setIsCompileSuccess(true);
+    if (!activeProblemId) return;
+    setConsoleLogs(['Compiling and linking files...', 'Submitting code execution to Judge0 cluster...']);
+    setIsCompileSuccess(null);
+
+    runMutation.mutate({
+      problemId: activeProblemId,
+      language: activeLang,
+      codeContent: editorCode,
+      customInput: ""
+    }, {
+      onSuccess: (data) => {
+        setConsoleLogs(data.logs);
+        setIsCompileSuccess(data.compileSuccess);
+      },
+      onError: () => {
+        setConsoleLogs(['Error reaching remote compiler.', 'Execution failed.']);
+        setIsCompileSuccess(false);
+      }
+    });
   };
 
   const submitCodeSimulation = () => {
+    if (!activeProblemId) return;
     setIsSubmitting(true);
-    setTimeout(() => {
-      setConsoleLogs(['Compiling on remote cluster...', 'Running 50 system test cases...', '✓ All 50 test cases passed.', 'Runtime: 4ms (Beats 94.2% of users)', 'Memory: 10.4MB (Beats 82.1% of users)', 'Submission: ACCEPTED']);
-      setIsCompileSuccess(true);
-      setIsSubmitting(false);
-      if (activeProblemId && !solvedIds.includes(activeProblemId)) {
-        setSolvedIds(prev => [...prev, activeProblemId]);
+    setConsoleLogs(['Uploading package...', 'Running system evaluation...']);
+    setIsCompileSuccess(null);
+
+    submitMutation.mutate({
+      email: studentProfile.personalEmail || '',
+      problemId: activeProblemId,
+      language: activeLang,
+      codeContent: editorCode
+    }, {
+      onSuccess: (data) => {
+        setConsoleLogs(data.logs);
+        setIsCompileSuccess(data.status === 'ACCEPTED');
+        setIsSubmitting(false);
+        if (activeProblemId && !solvedIds.includes(activeProblemId)) {
+          setSolvedIds(prev => [...prev, activeProblemId]);
+        }
+      },
+      onError: () => {
+        setConsoleLogs(['Remote compiler verification error. Submission rejected.']);
+        setIsCompileSuccess(false);
+        setIsSubmitting(false);
       }
-    }, 1000);
+    });
   };
 
   const toggleBookmark = (id: string) => {
     setBookmarkedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    toggleBookmarkMutation.mutate({
+      email: studentProfile.personalEmail || '',
+      problemId: id
+    });
   };
 
-  const activeProblem = codingProblems.find(p => p.id === activeProblemId);
+  const activeProblem = activeProblemsList.find(p => p.id === activeProblemId);
 
   return (
     <div className="coding-practice-view" style={{ height: '100%' }}>
@@ -194,7 +270,7 @@ export const CodingView: React.FC<CodingViewProps> = ({ studentProfile }) => {
             <div className="dashboard-accent-card" style={{ minHeight: 'auto', padding: '16px' }}>
               <span className="dashboard-accent-card-label" style={{ fontSize: '10px' }}>Total Problems Solved</span>
               <span className="dashboard-accent-card-value text-accent-blue" style={{ fontSize: '20px', marginTop: '4px' }}>
-                {solvedIds.length} / {codingProblems.length}
+                {solvedIds.length} / {activeProblemsList.length}
               </span>
             </div>
             <div className="dashboard-accent-card" style={{ minHeight: 'auto', padding: '16px' }}>
@@ -240,141 +316,111 @@ export const CodingView: React.FC<CodingViewProps> = ({ studentProfile }) => {
                 </select>
               </div>
 
-              {/* Problems table */}
-              <div className="registry-table-scroll-container">
-                <table className="stats-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '40px' }}>Solved</th>
-                      <th>Problem Title</th>
-                      <th>Topic</th>
-                      <th>Company</th>
-                      <th>Difficulty</th>
-                      <th>Acceptance</th>
-                      <th style={{ width: '40px' }}>★</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProblems.map(p => {
-                      const isSolved = solvedIds.includes(p.id);
-                      return (
-                        <tr key={p.id} className="table-row-hover" style={{ cursor: 'pointer' }} onClick={() => handleSelectProblem(p)}>
-                          <td>
-                            {isSolved ? (
-                              <span className="text-accent-green" style={{ fontWeight: 800 }}>✓</span>
-                            ) : (
-                              <span className="text-muted" style={{ fontSize: '12px' }}>-</span>
-                            )}
-                          </td>
-                          <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{p.title}</td>
-                          <td style={{ color: 'var(--text-secondary)' }}>{p.topic}</td>
-                          <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{p.company}</td>
-                          <td>
-                            <span className={`eligibility-tag ${p.difficulty === 'easy' ? 'eligible' : p.difficulty === 'medium' ? 'ineligible' : 'pending'}`}>
-                              {p.difficulty}
-                            </span>
-                          </td>
-                          <td style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{p.acceptance}</td>
-                          <td>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleBookmark(p.id); }}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: bookmarkedIds.includes(p.id) ? 'var(--accent-orange)' : 'var(--text-muted)' }}
-                            >
-                              ★
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="dsa-problems-list">
+                {filteredProblems.map(prob => {
+                  const isSolved = solvedIds.includes(prob.id);
+                  const isBookmarked = bookmarkedIds.includes(prob.id);
+                  return (
+                    <div key={prob.id} className="dsa-problem-row">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span 
+                          style={{ cursor: 'pointer', fontSize: '16px', color: isBookmarked ? 'var(--accent-orange)' : 'var(--text-secondary)' }}
+                          onClick={() => toggleBookmark(prob.id)}
+                        >
+                          {isBookmarked ? '★' : '☆'}
+                        </span>
+                        <div>
+                          <h4 
+                            className="dsa-problem-title" 
+                            style={{ margin: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            onClick={() => handleSelectProblem(prob)}
+                          >
+                            {prob.title}
+                            {isSolved && <span style={{ color: 'var(--accent-green)', fontSize: '12px' }}>✓ Solved</span>}
+                          </h4>
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            {prob.topic} · {prob.company}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <span className={`diff-tag ${prob.difficulty}`}>
+                          {prob.difficulty}
+                        </span>
+                        <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', minWidth: '45px', textAlign: 'right' }}>
+                          {prob.acceptance}
+                        </span>
+                        <button 
+                          className="btn-solve-primary"
+                          onClick={() => handleSelectProblem(prob)}
+                        >
+                          Solve
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {filteredProblems.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-secondary)' }}>
+                    No problems match the selected filters.
+                  </div>
+                )}
               </div>
             </section>
 
-            {/* Sidebar info */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <section className="bento-card">
-                <span className="section-title-label">Coding Contests</span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
-                  <div className="mini-drive-row" style={{ padding: '12px' }}>
-                    <div>
-                      <h5 style={{ margin: 0, fontSize: '13px' }}>TPO Weekly Practice #5</h5>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>Scheduled: July 4, 3:00 PM</p>
-                    </div>
-                    <span className="mini-drive-badge badge-deadline">2d left</span>
-                  </div>
-                  <div className="mini-drive-row" style={{ padding: '12px' }}>
-                    <div>
-                      <h5 style={{ margin: 0, fontSize: '13px' }}>TCS CodeVita Mock Arena</h5>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>Historical OA Questions</p>
-                    </div>
-                    <span className="mini-drive-badge badge-shortlisted">Active</span>
-                  </div>
-                </div>
-              </section>
-
-              <section className="bento-card">
-                <span className="section-title-label">DSA Track Standings</span>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                  Your campus rank is <strong>14th</strong> out of 380 CSE students in coding challenges. Solve {codingProblems.length - solvedIds.length} more problems to unlock the Microsoft practice badge.
+            {/* Sidebar quick actions */}
+            <section style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div className="bento-card" style={{ padding: '20px' }}>
+                <span className="section-title-label">Weekly Coding Challenge</span>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '8px 0 4px 0' }}>LRU Cache</h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+                  Design a data structure that follows the constraints of a Least Recently Used (LRU) cache.
                 </p>
-              </section>
-            </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="diff-tag medium">medium</span>
+                  <button className="btn-solve-secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>
+                    Attempt Challenge
+                  </button>
+                </div>
+              </div>
+
+              <div className="bento-card" style={{ padding: '20px' }}>
+                <span className="section-title-label">Recommended Topics</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+                  <span className="badge-tech" style={{ cursor: 'pointer' }} onClick={() => setSelectedTopic('Arrays')}>Arrays &amp; Vectors</span>
+                  <span className="badge-tech" style={{ cursor: 'pointer' }} onClick={() => setSelectedTopic('Trees')}>Binary Trees</span>
+                  <span className="badge-tech" style={{ cursor: 'pointer' }} onClick={() => setSelectedTopic('DP')}>Dynamic Programming</span>
+                  <span className="badge-tech" style={{ cursor: 'pointer' }} onClick={() => setSelectedTopic('Graphs')}>Graph Search</span>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       ) : (
-        /* Workspace Mode */
-        <div className="coding-workspace-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '24px', height: '100%', alignItems: 'stretch' }}>
-          {/* Left panel: Problem Description */}
-          <section className="bento-card" style={{ display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <button className="view-calendar-btn" style={{ fontSize: '11px', padding: '6px 12px' }} onClick={() => setActiveProblemId(null)}>
+        /* IDE Workspace Mode */
+        <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', height: '100%', gap: '16px' }}>
+          {/* Top workspace bar */}
+          <div className="ide-top-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button 
+                className="btn-solve-secondary" 
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+                onClick={() => setActiveProblemId(null)}
+              >
                 &larr; Problems
               </button>
-              <button
-                onClick={() => toggleBookmark(activeProblem!.id)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: bookmarkedIds.includes(activeProblem!.id) ? 'var(--accent-orange)' : 'var(--text-muted)' }}
-              >
-                ★
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <h2 className="section-title-large" style={{ margin: 0 }}>{activeProblem!.title}</h2>
-              <span className={`eligibility-tag ${activeProblem!.difficulty === 'easy' ? 'eligible' : activeProblem!.difficulty === 'medium' ? 'ineligible' : 'pending'}`}>
-                {activeProblem!.difficulty}
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>
+                {activeProblem?.title}
+              </h3>
+              <span className={`diff-tag ${activeProblem?.difficulty}`}>
+                {activeProblem?.difficulty}
               </span>
             </div>
 
-            <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap', marginBottom: '24px' }}>
-              {activeProblem!.description}
-            </p>
-
-            <span className="details-section-title" style={{ marginBottom: '8px' }}>Constraints</span>
-            <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '12.5px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '24px' }}>
-              {activeProblem!.constraints.map((c, i) => (
-                <li key={i}><code>{c}</code></li>
-              ))}
-            </ul>
-
-            <span className="details-section-title" style={{ marginBottom: '8px' }}>Expandable Test Cases</span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {activeProblem!.testCases.map((tc, idx) => (
-                <div key={idx} style={{ background: 'var(--bg-page)', border: '1px solid var(--border-soft)', padding: '10px 12px', borderRadius: '6px', fontSize: '11.5px', fontFamily: 'var(--font-mono)' }}>
-                  <div><span style={{ color: 'var(--text-muted)' }}>Input:</span> {tc.input}</div>
-                  <div style={{ marginTop: '4px' }}><span style={{ color: 'var(--text-muted)' }}>Output:</span> {tc.output}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Right panel: Editor workspace */}
-          <section className="bento-card" style={{ display: 'flex', flexDirection: 'column', padding: '20px', background: '#09090b', borderColor: '#27272a' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <span style={{ color: '#e4e4e7', fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>MAIN.WORKSPACE</span>
-              <select
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <select 
                 className="calendar-filter-select"
-                style={{ background: '#18181b', color: '#f4f4f5', borderColor: '#27272a', fontSize: '11.5px', padding: '4px 8px' }}
+                style={{ padding: '4px 8px', fontSize: '12px' }}
                 value={activeLang}
                 onChange={(e) => handleLanguageChange(e.target.value as any)}
               >
@@ -383,74 +429,100 @@ export const CodingView: React.FC<CodingViewProps> = ({ studentProfile }) => {
                 <option value="cpp">C++ 20</option>
               </select>
             </div>
+          </div>
 
-            {/* Code editor textarea wrapper */}
-            <div className="ide-editor-container" style={{ flexGrow: 1, display: 'flex', position: 'relative', minHeight: '240px', background: '#18181b', borderRadius: '6px', border: '1px solid #27272a', overflow: 'hidden' }}>
-              {/* Fake line numbers */}
-              <div style={{ width: '32px', background: '#0f0f11', borderRight: '1px solid #27272a', padding: '12px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', fontFamily: 'var(--font-mono)', fontSize: '11.5px', color: '#52525b', userSelect: 'none' }}>
-                {Array.from({ length: 15 }, (_, i) => i + 1).map(n => (
-                  <div key={n}>{n}</div>
-                ))}
+          {/* IDE Split editor / description layout */}
+          <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr', gap: '16px', minHeight: 0 }}>
+            {/* Left pane: Description & Constraints */}
+            <div className="bento-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+              <div>
+                <span className="section-title-label" style={{ fontSize: '10px' }}>Description</span>
+                <p style={{ fontSize: '13.5px', lineHeight: 1.6, margin: '8px 0 0 0', whiteSpace: 'pre-wrap' }}>
+                  {activeProblem?.description}
+                </p>
               </div>
-              <textarea
-                className="ide-code-textarea"
-                value={editorCode}
-                onChange={(e) => setEditorCode(e.target.value)}
-                style={{
-                  flexGrow: 1,
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  color: '#e4e4e7',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '12.5px',
-                  lineHeight: '1.6',
-                  padding: '12px',
-                  resize: 'none',
-                  whiteSpace: 'pre'
-                }}
-              />
+
+              {activeProblem?.constraints && activeProblem.constraints.length > 0 && (
+                <div>
+                  <span className="section-title-label" style={{ fontSize: '10px' }}>Constraints</span>
+                  <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px', fontSize: '12.5px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {activeProblem.constraints.map((c: string, i: number) => (
+                      <li key={i}>{c}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {activeProblem?.testCases && activeProblem.testCases.map((tc: any, idx: number) => (
+                <div key={idx}>
+                  <span className="section-title-label" style={{ fontSize: '10px' }}>Example Test Case {idx + 1}</span>
+                  <div style={{ background: 'var(--bg-surface)', padding: '10px', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div><strong>Input:</strong> {tc.input}</div>
+                    <div><strong>Output:</strong> {tc.output}</div>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {/* Console output block */}
-            <div className="ide-console-panel" style={{ height: '140px', minHeight: '140px', background: '#09090b', border: isCompileSuccess === true ? '1px solid var(--accent-green)' : isCompileSuccess === false ? '1px solid var(--accent-red)' : '1px solid #27272a', borderRadius: '6px', marginTop: '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ background: '#18181b', padding: '6px 12px', borderBottom: '1px solid #27272a', fontSize: '10.5px', color: '#a1a1aa', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                CONSOLE OUTPUT
+            {/* Right pane: Editor and Terminal */}
+            <div style={{ display: 'grid', gridTemplateRows: '1fr auto 120px', gap: '12px', minHeight: 0 }}>
+              {/* Code editor */}
+              <div className="bento-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ background: 'var(--bg-surface)', padding: '6px 12px', borderBottom: '1px solid var(--border-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>main.{activeLang === 'python' ? 'py' : activeLang === 'java' ? 'java' : 'cpp'}</span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Autosaved</span>
+                </div>
+                <textarea
+                  className="code-editor-textarea"
+                  value={editorCode}
+                  onChange={(e) => setEditorCode(e.target.value)}
+                  style={{
+                    flex: 1,
+                    resize: 'none',
+                    border: 'none',
+                    outline: 'none',
+                    padding: '12px',
+                    fontFamily: 'monospace',
+                    fontSize: '13px',
+                    background: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.5
+                  }}
+                />
               </div>
-              <div style={{ flexGrow: 1, overflowY: 'auto', padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: '#e4e4e7', display: 'flex', flexDirection: 'column', gap: '4px', lineHeight: 1.5 }}>
-                {consoleLogs.length === 0 ? (
-                  <span style={{ color: '#52525b' }}>Console is quiet. Submit or Run code to compile.</span>
-                ) : (
-                  consoleLogs.map((line, i) => {
-                    let color = '#a1a1aa';
-                    if (line.includes('PASSED') || line.includes('ACCEPTED')) color = 'var(--accent-green)';
-                    if (line.includes('FAILED')) color = 'var(--accent-red)';
-                    return <div key={i} style={{ color }}>{line}</div>;
-                  })
-                )}
-              </div>
-            </div>
 
-            {/* Editor footer CTAs */}
-            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-              <button
-                className="tpo-btn"
-                style={{ flex: 1, background: '#18181b', color: '#e4e4e7', borderColor: '#27272a' }}
-                onClick={runCodeSimulation}
-                disabled={isSubmitting}
-              >
-                Run Tests
-              </button>
-              <button
-                className="tpo-btn tpo-btn-primary"
-                style={{ flex: 1.5 }}
-                onClick={submitCodeSimulation}
-                disabled={isSubmitting || editorCode.trim() === ''}
-              >
-                {isSubmitting ? 'Compiling...' : 'Submit Solution'}
-              </button>
+              {/* Action buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button 
+                  className="btn-solve-secondary"
+                  onClick={runCodeSimulation}
+                  disabled={isSubmitting || runMutation.isPending}
+                >
+                  {runMutation.isPending ? 'Executing...' : 'Run Code'}
+                </button>
+                <button 
+                  className="btn-solve-primary"
+                  onClick={submitCodeSimulation}
+                  disabled={isSubmitting || submitMutation.isPending}
+                >
+                  {isSubmitting || submitMutation.isPending ? 'Verifying...' : 'Submit Solution'}
+                </button>
+              </div>
+
+              {/* Console log outputs */}
+              <div className="bento-card" style={{ padding: '12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span className="section-title-label" style={{ fontSize: '9px' }}>Console Logs &amp; compiler output</span>
+                <div style={{ fontFamily: 'monospace', fontSize: '11.5px', color: isCompileSuccess === false ? 'var(--accent-red)' : 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  {consoleLogs.map((log, i) => (
+                    <div key={i}>{log}</div>
+                  ))}
+                  {consoleLogs.length === 0 && (
+                    <div style={{ color: 'var(--text-muted)' }}>Press Run Code or Submit to view results...</div>
+                  )}
+                </div>
+              </div>
             </div>
-          </section>
+          </div>
         </div>
       )}
     </div>
