@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
-backend/venv/
+
+# Backend (not needed for frontend deployment)
+backend/
 
 # Build output
 dist/
