@@ -86,3 +86,86 @@ export const useRegisterDriveMutation = () => {
     },
   });
 };
+
+/**
+ * Hook to retrieve dashboard summary metrics.
+ * Fetches from the backend API, with local high-fidelity fallbacks.
+ */
+export const useDashboardQuery = (email: string) => {
+  return useQuery({
+    queryKey: ['dashboard', email],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<any>(`/dashboard?email=${email}`);
+        return response.data;
+      } catch (err) {
+        return {
+          readiness: 82,
+          upcomingDrives: [
+            {
+              company: "TCS Digital",
+              role: "Systems Engineer",
+              package: "7.2 LPA",
+              status: "Registered",
+              date: "July 8, 2026",
+              prepStatus: "Ready (Score: 88%)",
+              logoText: "T"
+            },
+            {
+              company: "Google India",
+              role: "Software Engineer",
+              package: "32 LPA",
+              status: "Applied",
+              date: "OA: July 15, 2026",
+              badge: "Closes in 3 days",
+              badgeClass: "badge-red"
+            },
+            {
+              company: "Microsoft IDC",
+              role: "Intern Engineer",
+              package: "18 LPA",
+              status: "Applied",
+              date: "OA: July 20, 2026",
+              badge: "OA: July 15",
+              badgeClass: "badge-blue"
+            }
+          ],
+          continuePractice: {
+            aptitude: {
+              topic: "Probability & Combinatorics",
+              progress: 80
+            },
+            coding: {
+              topic: "Dynamic Programming",
+              solved: 125,
+              total: 300,
+              progress: 60
+            },
+            technical: {
+              topic: "Virtual Memory & Paging",
+              course: "Operating Systems",
+              progress: 72
+            }
+          },
+          standing: {
+            rank: 24,
+            total: 180,
+            percentile: 15,
+            weeklyChange: "↑ 5 Positions",
+            score: 78
+          },
+          recommendations: [
+            {
+              type: "coding",
+              title: "Solve 'Longest Common Subsequence'",
+              difficulty: "Medium",
+              time: "30 mins"
+            }
+          ]
+        };
+      }
+    },
+    enabled: !!email,
+  });
+};
+

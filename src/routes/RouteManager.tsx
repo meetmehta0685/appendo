@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { useStudentProfileQuery, useUpdateProfileMutation } from '../api/queries';
+import { useStudentProfileQuery, useUpdateProfileMutation, useDashboardQuery } from '../api/queries';
 import { LoginView } from '../components/LoginView';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -59,6 +59,7 @@ export const RouteManager: React.FC = () => {
 
   // Hook to pull profile using React Query
   const { data: profile, isLoading, error } = useStudentProfileQuery(email || '');
+  const { data: dashboardData } = useDashboardQuery(email || '');
 
   // Global theme synchronization
   useEffect(() => {
@@ -144,6 +145,7 @@ export const RouteManager: React.FC = () => {
         {currentTab === 'dashboard' ? (
           <DashboardView
             studentProfile={profile}
+            dashboardData={dashboardData}
             onCycleBranch={cycleBranch}
             onRegisterDrive={handleRegisterDrive}
             onRequestWaiver={handleRequestWaiver}
