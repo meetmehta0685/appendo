@@ -27,7 +27,7 @@ def format_profile_response(profile: StudentProfile) -> dict:
           "interview": profile.sub_scores.get("interview", 0),
           "resume": profile.sub_scores.get("resume", 0)
       },
-      "drives": profile.drives if hasattr(profile, 'drives') else {},
+      "drives": profile.sub_scores.get("drives", {}),
       "mobile": profile.mobile,
       "personalEmail": profile.personal_email,
       "linkedin": profile.linkedin_url,

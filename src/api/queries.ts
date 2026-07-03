@@ -64,6 +64,25 @@ export const useUpdateProfileMutation = () => {
 };
 
 /**
+ * Hook to retrieve all active placement drives.
+ */
+export const usePlacementDrivesQuery = () => {
+  return useQuery({
+    queryKey: QUERY_KEYS.drives(),
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<Record<string, any>>('/drives');
+        return response.data;
+      } catch (err) {
+        // Fallback to static mockData
+        const { calendarEvents } = await import('../data/mockData');
+        return calendarEvents;
+      }
+    }
+  });
+};
+
+/**
  * Mutation to register a student for a recruitment drive.
  */
 export const useRegisterDriveMutation = () => {
@@ -78,6 +97,30 @@ export const useRegisterDriveMutation = () => {
       } catch (err) {
         // Fallback to local store handler
         registerDriveLocal(companyId, day);
+        return { success: true, companyId, day };
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.profile(variables.email) });
+    },
+  });
+};
+
+/**
+ * Mutation to request TPO GPA waiver for a recruitment drive.
+ */
+export const useRequestWaiverMutation = () => {
+  const queryClient = useQueryClient();
+  const requestWaiverLocal = useProfileStore((state) => state.requestWaiver);
+
+  return useMutation({
+    mutationFn: async ({ companyId, day, email }: { companyId: string; day: number; email: string }) => {
+      try {
+        const response = await apiClient.post(`/drives/waiver`, { companyId, day, email });
+        return response.data;
+      } catch (err) {
+        // Fallback to local store handler
+        requestWaiverLocal(companyId, day);
         return { success: true, companyId, day };
       }
     },

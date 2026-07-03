@@ -1,9 +1,9 @@
 import React from 'react';
 import { StudentProfile } from '../types';
-import { calendarEvents } from '../data/mockData';
 
 interface CalendarViewProps {
   studentProfile: StudentProfile;
+  drives: Record<string, any>;
   selectedDay: number;
   onSelectDay: (day: number) => void;
   onRegisterDrive: (companyId: string, day: number) => void;
@@ -83,20 +83,43 @@ const getAvatarStyle = (companyId: string) => {
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
   studentProfile,
+  drives,
   selectedDay,
   onSelectDay,
   onRegisterDrive,
   onRequestWaiver,
   onNavigateToDashboard,
 }) => {
-  const sortedDays = Object.keys(calendarEvents).map(Number).sort((a, b) => a - b);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [filterType, setFilterType] = React.useState('all'); // all, eligible, registered, waiver_needed
+
+  const sortedDays = Object.keys(drives).map(Number).sort((a, b) => a - b);
+
+  // Filter days based on search query & eligibility
+  const filteredDays = sortedDays.filter(day => {
+    const ev = drives[day];
+    if (!ev) return false;
+    
+    const matchesSearch = ev.companyName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          ev.role.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    const isEligible = studentProfile.gpa >= ev.minGpa;
+    const status = studentProfile.drives[ev.companyId];
+    
+    if (filterType === 'eligible' && !isEligible) return false;
+    if (filterType === 'registered' && status !== 'registered') return false;
+    if (filterType === 'waiver_needed' && isEligible) return false;
+    
+    return true;
+  });
 
   // Group events chronologically
   const timeframeGroups = {
-    today: sortedDays.filter(day => day === 2 || day === 8), // Today (July 2) / Immediate TCS (July 8)
-    thisWeek: sortedDays.filter(day => day === 5), // Google Closes July 5
-    nextWeek: sortedDays.filter(day => day === 15 || day === 22), // Microsoft July 15, Cognizant July 22
-    later: sortedDays.filter(day => day === 29) // Adobe July 29
+    today: filteredDays.filter(day => day === 2 || day === 8),
+    thisWeek: filteredDays.filter(day => day === 5),
+    nextWeek: filteredDays.filter(day => day === 15 || day === 22),
+    later: filteredDays.filter(day => day === 29 || (![2, 5, 8, 15, 22, 29].includes(day)))
   };
 
   const getUrgencyBadge = (day: number, ev: any, status: string) => {
@@ -125,7 +148,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   const renderDetailsPanel = () => {
-    const ev = calendarEvents[selectedDay];
+    const ev = drives[selectedDay];
     if (!ev) {
       return (
         <div className="planner-empty-state">
@@ -246,7 +269,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {/* Funnel Pipeline */}
         <span className="details-section-title">Recruitment Pipeline Funnel</span>
         <div className="details-timeline-funnel" style={{ margin: '12px 0 24px 0' }}>
-          {ev.funnel.map((step, idx) => {
+          {ev.funnel.map((step: any, idx: number) => {
             const isCompleted = status === 'registered' && idx === 0;
             const isActive = (status === 'registered' && idx === 1) || (status !== 'registered' && idx === 0);
             return (
@@ -310,7 +333,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         <h4 className="timeline-group-title">{title}</h4>
         <div className="timeline-group-stack">
           {days.map(day => {
-            const ev = calendarEvents[day];
+            const ev = drives[day];
+            if (!ev) return null;
             const status = studentProfile.drives[ev.companyId];
             const urgency = getUrgencyBadge(day, ev, status);
             const avatarInfo = getAvatarStyle(ev.companyId);
@@ -360,18 +384,49 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     <div className="timeline-planner-layout">
       {/* Left Timeline Panel */}
       <section className="planner-timeline-column">
-        <div className="planner-header">
+        <div className="planner-header" style={{ marginBottom: '16px' }}>
           <div>
             <h2 className="section-title-large">Placement Planner</h2>
             <p className="registry-header-sub">Chronological timeline of active placement drives and events</p>
           </div>
-          <button
-            className="view-calendar-btn"
-            style={{ fontSize: '11px', padding: '6px 12px' }}
-            onClick={() => alert('Recruitment calendar synced successfully to local calendar! 🔄')}
+        </div>
+
+        {/* Search and Filters */}
+        <div className="planner-search-filter-bar" style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+          <input
+            type="text"
+            className="tpo-input"
+            placeholder="Search company or role..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ 
+              flex: 1, 
+              padding: '8px 12px', 
+              borderRadius: '8px', 
+              border: '1px solid var(--border-soft)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontSize: '13px'
+            }}
+          />
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-soft)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              cursor: 'pointer'
+            }}
           >
-            🔄 Sync Timeline
-          </button>
+            <option value="all">All Statuses</option>
+            <option value="eligible">Eligible Only</option>
+            <option value="registered">Registered</option>
+            <option value="waiver_needed">Waiver Needed</option>
+          </select>
         </div>
 
         <div className="timeline-scroll-area">
