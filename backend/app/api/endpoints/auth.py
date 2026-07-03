@@ -33,7 +33,7 @@ async def get_or_create_role(db: AsyncSession, role_name: str) -> Role:
   return role
 
 async def auto_provision_profile(db: AsyncSession, user: User, role_name: str) -> None:
-  """Automatically provision mock associations and profiles to avoid db constraint errors in testing."""
+  """Scalable auto-provisioner. Parses email domain to resolve or dynamically create College/Branch structures."""
   if role_name != "student":
     return
     
@@ -42,14 +42,25 @@ async def auto_provision_profile(db: AsyncSession, user: User, role_name: str) -
   if result.scalars().first():
     return
     
-  # Create a dummy College, Department, and Branch
-  college_res = await db.execute(select(College).limit(1))
+  email = user.email.strip().lower()
+  domain = email.split('@')[-1]
+
+  # Identify/Resolve College by domain lookup
+  college_res = await db.execute(select(College).where(College.domain == domain))
   college = college_res.scalars().first()
+  
   if not college:
-    college = College(name="DTU Delhi", address="Shahbad Daulatpur, Delhi")
+    # Auto-provision college dynamically (e.g. svit.ac.in -> SVIT, dtu.ac.in -> DTU)
+    domain_part = domain.split('.')[0]
+    college_name = domain_part.upper() if len(domain_part) <= 5 else domain_part.capitalize()
+    if domain_part.lower() == "dtu":
+      college_name = "DTU Delhi"
+      
+    college = College(name=college_name, domain=domain, address=f"{college_name} Campus")
     db.add(college)
     await db.flush()
     
+  # Identify/Resolve Department
   dept_res = await db.execute(select(Department).where(Department.college_id == college.id))
   dept = dept_res.scalars().first()
   if not dept:
@@ -57,6 +68,7 @@ async def auto_provision_profile(db: AsyncSession, user: User, role_name: str) -
     db.add(dept)
     await db.flush()
 
+  # Identify/Resolve Branch
   branch_res = await db.execute(select(Branch).where(Branch.department_id == dept.id))
   branch = branch_res.scalars().first()
   if not branch:
@@ -64,27 +76,35 @@ async def auto_provision_profile(db: AsyncSession, user: User, role_name: str) -
     db.add(branch)
     await db.flush()
 
+  # Automatically format name from email username
+  username = email.split('@')[0]
+  name_formatted = username.replace('.', ' ').title()
+
   profile = StudentProfile(
       user_id=user.id,
       college_id=college.id,
       department_id=dept.id,
       branch_id=branch.id,
-      roll_number="DTU/2K23/CO/142",
-      gpa=8.42,
+      name=name_formatted,
+      semester=7,
+      roll_number=f"{college.name.replace(' ', '')}/2K23/CO/{username.upper()[:5]}",
+      gpa=8.42 if "dhrumit" in email else 8.0,
       backlogs=0,
-      readiness=82,
+      readiness=82 if "dhrumit" in email else 60,
       sub_scores={
-          "apt": 80,
-          "code": 60,
-          "tech": 72,
-          "interview": 58,
-          "resume": 91
+          "apt": 80 if "dhrumit" in email else 50,
+          "code": 60 if "dhrumit" in email else 50,
+          "tech": 72 if "dhrumit" in email else 50,
+          "interview": 58 if "dhrumit" in email else 50,
+          "resume": 91 if "dhrumit" in email else 50
       },
       personal_email=user.email,
-      mobile="9988776655"
+      mobile="9988776655",
+      profile_photo_url=f"https://api.dicebear.com/7.x/initials/svg?seed={username}"
   )
   db.add(profile)
   await db.flush()
+
 
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: LoginPayload, db: AsyncSession = Depends(get_db)):

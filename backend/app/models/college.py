@@ -8,6 +8,7 @@ class College(Base, UUIDPrimaryKeyMixin):
   __tablename__ = "colleges"
 
   name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+  domain: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
   address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
   # Relationships

@@ -1,8 +1,8 @@
 """Initial production tables schema
 
-Revision ID: eb62bb56332c
+Revision ID: 205faa9ad3f4
 Revises: 
-Create Date: 2026-07-03 12:04:40.546936
+Create Date: 2026-07-03 12:06:55.780850
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'eb62bb56332c'
+revision: str = '205faa9ad3f4'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -49,12 +49,14 @@ def upgrade() -> None:
     op.create_index(op.f('ix_coding_problems_id'), 'coding_problems', ['id'], unique=False)
     op.create_table('colleges',
     sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('domain', sa.String(length=100), nullable=False),
     sa.Column('address', sa.String(length=500), nullable=True),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_colleges_domain'), 'colleges', ['domain'], unique=True)
     op.create_index(op.f('ix_colleges_id'), 'colleges', ['id'], unique=False)
     op.create_index(op.f('ix_colleges_name'), 'colleges', ['name'], unique=True)
     op.create_table('companies',
@@ -410,6 +412,7 @@ def downgrade() -> None:
     op.drop_table('companies')
     op.drop_index(op.f('ix_colleges_name'), table_name='colleges')
     op.drop_index(op.f('ix_colleges_id'), table_name='colleges')
+    op.drop_index(op.f('ix_colleges_domain'), table_name='colleges')
     op.drop_table('colleges')
     op.drop_index(op.f('ix_coding_problems_id'), table_name='coding_problems')
     op.drop_table('coding_problems')
