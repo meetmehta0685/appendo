@@ -19,6 +19,8 @@ class StudentProfile(Base, UUIDPrimaryKeyMixin, SoftDeleteMixin):
   department_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("departments.id", ondelete="RESTRICT"), nullable=False)
   branch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("branches.id", ondelete="RESTRICT"), nullable=False)
 
+  name: Mapped[str] = mapped_column(String(255), default="Student", nullable=False)
+  semester: Mapped[int] = mapped_column(Integer, default=7, nullable=False)
   roll_number: Mapped[str] = mapped_column(String(50), nullable=False)
   gpa: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
   backlogs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

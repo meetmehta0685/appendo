@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { useStudentProfileQuery } from '../api/queries';
+import { useStudentProfileQuery, useUpdateProfileMutation } from '../api/queries';
 import { LoginView } from '../components/LoginView';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -44,7 +44,11 @@ export const RouteManager: React.FC = () => {
   const completeGradingLocal = useProfileStore((state) => state.completeGrading);
   const scanResumeLocal = useProfileStore((state) => state.scanResume);
   const launchSandboxLocal = useProfileStore((state) => state.launchSandbox);
-  const saveProfileLocal = useProfileStore((state) => state.saveProfile);
+  
+  const updateProfileMutation = useUpdateProfileMutation();
+  const saveProfileLocal = (updatedProfile: any) => {
+    updateProfileMutation.mutate(updatedProfile);
+  };
 
   // Ensure state matches the email on auth login
   useEffect(() => {
