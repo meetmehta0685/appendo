@@ -5,59 +5,59 @@
    ========================================================================== */
 
 :root {
-  /* Colors - Zinc Scale & Refined Accents */
-  --bg-page:        #f9fafb; /* Light clean warm gray canvas */
-  --bg-card:        #ffffff; /* Pristine card white */
-  --bg-dark:        #09090b; /* Midnight black for high-contrast highlight cards */
-  --border:         #e4e4e7; /* Zinc-200 border, very thin and crisp */
-  --border-soft:    #f4f4f5; /* Zinc-100 for subtle lines and container tracks */
+  /* Colors - Minimal Warm Palette & Primary Accent */
+  --bg-page:        #FFFFFF; /* Pure White Canvas */
+  --bg-card:        #F5F3F1; /* Warm Gray Surface */
+  --bg-dark:        #191919; /* High-contrast Dark */
+  --border:         rgba(0, 0, 0, 0.04); /* Soft depth instead of hard borders */
+  --border-soft:    rgba(0, 0, 0, 0.02);
 
   /* Neutral Text */
-  --text-primary:   #09090b; /* Zinc-950 - high readability */
-  --text-secondary: #52525b; /* Zinc-600 - muted but clearly readable */
-  --text-tertiary:  #8e8e93; /* Apple-like gray for labels and hints */
-  --text-muted:     #a1a1aa; /* Zinc-400 for disabled/placeholders */
-  --text-on-dark:   #ffffff; /* Text on dark backgrounds */
-  --text-on-dark-2: #a1a1aa; /* Muted text on dark backgrounds */
+  --text-primary:   #191919; /* High readability black */
+  --text-secondary: #555555; /* Soft dark gray */
+  --text-tertiary:  #7C7C7C; /* Muted Apple-like gray */
+  --text-muted:     #A6A6A6; /* Disabled placeholders */
+  --text-on-dark:   #FFFFFF; /* Text on dark backgrounds */
+  --text-on-dark-2: #CCCCCC;
 
-  /* Accent Colors (Refined & Human-Curated) */
-  --accent-blue:       #0066cc; /* Premium Apple-like Royal Blue */
-  --accent-blue-bg:    #f2f8ff; /* Clean soft blue tint */
-  --accent-orange:     #d97706; /* Refined Amber */
-  --accent-orange-bg:  #fffbeb; /* Clean soft amber tint */
-  --accent-violet:     #7c3aed; /* Deep Violet */
-  --accent-violet-bg:  #f5f3ff; /* Soft violet tint */
-  --accent-green:      #16a34a; /* Emerald green */
-  --accent-green-bg:   #f0fdf4; /* Soft emerald green tint */
-  --accent-red:        #dc2626; /* Apple red */
-  --accent-red-bg:     #fef2f2; /* Soft red tint */
+  /* Accent Colors (Minimal - No color slop) */
+  --accent-blue:       #4191D6; /* Minimal Primary Blue */
+  --accent-blue-bg:    rgba(65, 145, 214, 0.08); /* Soft blue tint */
+  --accent-orange:     #4191D6;
+  --accent-orange-bg:  #F5F3F1;
+  --accent-violet:     #4191D6;
+  --accent-violet-bg:  #F5F3F1;
+  --accent-green:      #4191D6;
+  --accent-green-bg:   #F5F3F1;
+  --accent-red:        #191919;
+  --accent-red-bg:     #F5F3F1;
 
-  /* Spacing Scale (8px Grid System) */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-  --space-16: 64px;
+  /* Spacing Scale (Breathing room) */
+  --space-1: 6px;
+  --space-2: 12px;
+  --space-3: 18px;
+  --space-4: 24px;
+  --space-5: 30px;
+  --space-6: 36px;
+  --space-8: 48px;
+  --space-10: 60px;
+  --space-12: 72px;
+  --space-16: 96px;
 
-  /* Border Radii */
-  --radius-sm:     6px;   /* Buttons, inputs, small tags */
-  --radius-md:     10px;  /* Segmented controls, small lists */
-  --radius-card:   12px;  /* Main UI cards (Linear/Apple Standard) */
-  --radius-pill:   9999px; /* Status tags, avatar circle */
+  /* Consistent 12-16px Border Radii */
+  --radius-sm:     8px;   /* Buttons, inputs, tags */
+  --radius-md:     12px;  /* Small lists, controls */
+  --radius-card:   14px;  /* Main UI cards */
+  --radius-pill:   9999px; /* Status pills */
 
-  /* Shadows (Soft, Multi-layered for depth) */
-  --shadow-sm:  0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md:  0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
-  --shadow-lg:  0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-xl:  0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  /* Soft depth elevations */
+  --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.01);
+  --shadow-md:  0 8px 24px rgba(0, 0, 0, 0.02);
+  --shadow-lg:  0 12px 32px rgba(0, 0, 0, 0.03);
+  --shadow-xl:  0 20px 48px rgba(0, 0, 0, 0.04);
 
   /* Transitions */
-  --transition-smooth: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Fonts */
   --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -66,18 +66,19 @@
 
   /* Backward Compatibility Aliases */
   --primary: var(--accent-blue);
-  --primary-hover: #0052a3;
+  --primary-hover: #337ab5;
   --primary-light: var(--accent-blue-bg);
   --primary-border: var(--border);
-  --success: var(--accent-green);
-  --success-light: var(--accent-green-bg);
-  --alert: var(--accent-red);
-  --alert-light: var(--accent-red-bg);
-  --warning: var(--accent-orange);
-  --warning-light: var(--accent-orange-bg);
+  --success: var(--text-primary);
+  --success-light: var(--bg-card);
+  --alert: var(--text-primary);
+  --alert-light: var(--bg-card);
+  --warning: var(--accent-blue);
+  --warning-light: var(--bg-card);
   --bg-main: var(--bg-page);
   --border-card: var(--border);
 }
+
 
 /* ==========================================================================
    GLOBAL RESET & TYPOGRAPHY
@@ -5486,19 +5487,27 @@ body.dark .standing-score-row {
    DARK THEME OVERRIDES
    ========================================================================== */
 body.dark {
-  --bg-page:        #09090b; /* Midnight canvas */
-  --bg-card:        #18181b; /* Zinc-900 card background */
-  --border:         #27272a; /* Zinc-800 border */
-  --border-soft:    #202023; /* Zinc-850 border */
-  --text-primary:   #fafafa; /* Zinc-50 main text */
-  --text-secondary: #d4d4d8; /* Zinc-300 secondary text */
-  --text-tertiary:  #a1a1aa; /* Zinc-400 Apple gray */
-  --text-muted:     #52525b; /* Zinc-600 placeholders */
-  --accent-blue-bg:    #0a2f5c; /* Refined dark blue tint */
-  --accent-orange-bg:  #3b2200; /* Refined dark orange tint */
-  --accent-violet-bg:  #25103c; /* Refined dark violet tint */
-  --accent-green-bg:   #052309; /* Refined dark green tint */
-  --accent-red-bg:     #320606; /* Refined dark red tint */
+  --bg-page:        #121212; /* Dark Warm Canvas */
+  --bg-card:        #1C1C1E; /* Dark Warm Surface */
+  --border:         rgba(255, 255, 255, 0.04);
+  --border-soft:    rgba(255, 255, 255, 0.02);
+  
+  --text-primary:   #F5F3F1;
+  --text-secondary: #AAAAAA;
+  --text-tertiary:  #888888;
+  --text-muted:     #666666;
+  --text-on-dark:   #FFFFFF;
+  
+  --accent-blue:       #4191D6;
+  --accent-blue-bg:    rgba(65, 145, 214, 0.15);
+  --accent-orange:     #4191D6;
+  --accent-orange-bg:  #1C1C1E;
+  --accent-violet:     #4191D6;
+  --accent-violet-bg:  #1C1C1E;
+  --accent-green:      #4191D6;
+  --accent-green-bg:   #1C1C1E;
+  --accent-red:        #F5F3F1;
+  --accent-red-bg:     #1C1C1E;
 }
 
 /* Ensure global container is dark in dark mode */
@@ -8194,3 +8203,237 @@ body.dark .rb-version-default {
     justify-content: flex-end;
   }
 }
+
+/* ==========================================================================
+   TYROO PLACEMENT OS 2.0 DESIGN SYSTEM OVERRIDES
+   Inspired by Notion, Linear, Raycast, and Apple Settings.
+   Minimalism, soft depth, premium typography, information hierarchy first.
+   ========================================================================== */
+
+/* Typography resets */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display) !important;
+  color: var(--text-primary) !important;
+  letter-spacing: -0.025em !important;
+  text-transform: none !important; /* Avoid uppercase headings */
+}
+
+h1 {
+  font-weight: 800 !important; /* Bold Page Title */
+}
+
+h2, h3 {
+  font-weight: 600 !important; /* Semi Bold Section Title */
+}
+
+p {
+  color: var(--text-secondary) !important; /* Regular description */
+  font-weight: 400 !important;
+}
+
+label, .section-title-label, .sidebar-group-label, .details-section-title, .pref-title, .dashboard-accent-card-label {
+  font-weight: 500 !important; /* Medium Labels */
+  text-transform: none !important; /* Avoid uppercase headings */
+  letter-spacing: normal !important;
+}
+
+/* Base resets for card appearance (No heavy borders, soft elevation, consistent radii) */
+.bento-card, .card, .prep-large-card, .featured-drive-card, .standing-card, .quick-action-card, .mini-drive-row, .compact-drive-row, .apt-card, .results-metric-card, .review-card-item, .pref-section-card {
+  background: var(--bg-page) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.015), 0 1px 2px rgba(0, 0, 0, 0.01) !important;
+  padding: 24px !important;
+  transition: var(--transition-smooth) !important;
+}
+
+/* Subtle Hover states (Soft elevation) */
+.bento-card:hover, .card:hover, .prep-large-card:hover, .featured-drive-card:hover, .quick-action-card:hover, .apt-card:hover, .review-card-item:hover, .pref-section-card:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.015) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+body.dark .bento-card:hover, body.dark .card:hover, body.dark .prep-large-card:hover, body.dark .featured-drive-card:hover, body.dark .quick-action-card:hover, body.dark .apt-card:hover, body.dark .review-card-item:hover, body.dark .pref-section-card:hover {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Spacing and whitespace breathing room */
+.tyroo-main {
+  padding: 48px 56px !important; /* Generous breathing room */
+}
+
+.dashboard-greeting-row, .topic-list-header, .apt-header {
+  margin-bottom: 36px !important;
+}
+
+.apt-grid-3-1, .aptitude-main-grid, .results-grid, .topic-grid, .apt-modules-grid {
+  gap: 28px !important;
+}
+
+/* Sidebar Raycast/Apple Settings style */
+.sidebar {
+  background: var(--bg-card) !important; /* Warm surface F5F3F1 */
+  border-right: 1px solid var(--border) !important;
+  padding: 24px 16px !important;
+  width: 240px !important;
+}
+
+.sidebar-logo {
+  margin-bottom: 32px !important;
+}
+
+.brand-name {
+  font-family: var(--font-display) !important;
+  font-weight: 800 !important;
+  font-size: 16px !important;
+  color: var(--text-primary) !important;
+  letter-spacing: -0.03em !important;
+}
+
+.sidebar-group-label {
+  font-size: 11px !important;
+  color: var(--text-muted) !important;
+  margin: 20px 8px 8px 8px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+.sidebar-nav-item {
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
+  font-size: 13.5px !important;
+  color: var(--text-secondary) !important;
+  transition: var(--transition-smooth) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  font-weight: 500 !important;
+  margin-bottom: 2px !important;
+}
+
+.sidebar-nav-item:hover {
+  background: rgba(0, 0, 0, 0.02) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark .sidebar-nav-item:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.sidebar-nav-item.active {
+  background: var(--bg-page) !important; /* white canvas button background */
+  color: var(--text-primary) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.01) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* Remove colorful icon backgrounds globally */
+.prep-icon-box, .module-icon-box, .step-bullet {
+  background: var(--bg-card) !important; /* Neutral warm surface F5F3F1 */
+  color: var(--text-primary) !important;
+  border-radius: 8px !important;
+  width: 38px !important;
+  height: 38px !important;
+  font-size: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Status colors - Only when absolutely necessary and muted */
+.status-tag, .results-status-tag, .standing-badge, .default-badge {
+  background: var(--bg-card) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 9999px !important;
+  padding: 3px 10px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+/* Button overrides - Only one primary blue solid, others text/monochrome */
+.tpo-btn, .primary-btn, .btn-solve-primary, .topbar-btn, .dashboard-diagnostic-btn {
+  border-radius: 8px !important;
+  font-size: 13.5px !important;
+  padding: 8px 16px !important;
+  font-weight: 600 !important;
+  transition: var(--transition-smooth) !important;
+}
+
+/* Primary buttons are Blue Solid */
+.tpo-btn-primary, .primary-btn, .btn-solve-primary, .dashboard-diagnostic-btn {
+  background: var(--accent-blue) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+}
+
+.tpo-btn-primary:hover, .primary-btn:hover, .btn-solve-primary:hover, .dashboard-diagnostic-btn:hover {
+  background: #337ab5 !important;
+  transform: translateY(-0.5px) !important;
+}
+
+/* Secondary buttons are Text-only buttons (or subtle borderless) */
+.tpo-btn-secondary, .secondary-btn, .btn-solve-secondary, .view-calendar-btn, .sidebar-logout-btn {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-secondary) !important;
+  padding: 8px 12px !important;
+}
+
+.tpo-btn-secondary:hover, .secondary-btn:hover, .btn-solve-secondary:hover, .view-calendar-btn:hover, .sidebar-logout-btn:hover {
+  color: var(--text-primary) !important;
+  background: rgba(0, 0, 0, 0.02) !important;
+}
+
+body.dark .tpo-btn-secondary:hover, body.dark .secondary-btn:hover, body.dark .btn-solve-secondary:hover, body.dark .sidebar-logout-btn:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Monochrome clean icons */
+svg, .nav-icon {
+  stroke: var(--text-secondary) !important;
+}
+
+.active svg, .active .nav-icon {
+  stroke: var(--accent-blue) !important;
+}
+
+/* Remove colored details or borders */
+.reco-card {
+  border-left: 2px solid var(--accent-blue) !important; /* Only primary color left border */
+  background: var(--bg-card) !important;
+}
+
+.continue-practice-card {
+  border: 1px solid var(--border) !important;
+  background: var(--bg-card) !important;
+}
+
+/* Topbar cleanup */
+.topbar-container {
+  background: var(--bg-page) !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 16px 56px !important;
+}
+
+.topbar-right {
+  gap: 16px !important;
+}
+
+/* Inputs and Forms */
+input, select, textarea {
+  border-radius: 8px !important;
+  padding: 10px 14px !important;
+  border: 1px solid var(--border) !important;
+  background: var(--bg-page) !important;
+  color: var(--text-primary) !important;
+  font-size: 13.5px !important;
+  transition: var(--transition-smooth) !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent-blue) !important;
+  outline: none !important;
+}
+
