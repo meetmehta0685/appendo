@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StudentProfile } from '../types';
+import { apiClient } from '../api/client';
 
 interface AptitudeViewProps {
   studentProfile: StudentProfile;
@@ -36,7 +37,7 @@ interface Attempt {
   timeSpent: string;
 }
 
-const mockQuestions: Question[] = [
+export const mockQuestions: Question[] = [
   // Quantitative - Arithmetic
   {
     id: 'q1',
@@ -262,11 +263,20 @@ export const AptitudeView: React.FC<AptitudeViewProps> = ({ studentProfile }) =>
   });
 
   // Previous Attempts History
-  const [attempts, setAttempts] = useState<Attempt[]>([
-    { id: 'att-1', date: 'July 2, 2026', topic: 'Permutation & Combination', module: 'quantitative', score: '8/10', accuracy: 80, mode: 'Timed Test', questionsSolved: 10, timeSpent: '08:42' },
-    { id: 'att-2', date: 'June 29, 2026', topic: 'Syllogisms', module: 'logical', score: '7/8', accuracy: 87.5, mode: 'Practice Mode', questionsSolved: 8, timeSpent: '05:10' },
-    { id: 'att-3', date: 'June 25, 2026', topic: 'TCS', module: 'company', score: '15/20', accuracy: 75, mode: 'Company Mock', questionsSolved: 20, timeSpent: '22:15' }
-  ]);
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
+
+  // Synchronize dynamic history and bookmarks from studentProfile DB subScores
+  useEffect(() => {
+    if ((studentProfile.subScores as any)?.attempts_history) {
+      setAttempts((studentProfile.subScores as any).attempts_history);
+    }
+  }, [studentProfile]);
+
+  useEffect(() => {
+    if ((studentProfile.subScores as any)?.bookmarked_questions) {
+      setBookmarkedIds((studentProfile.subScores as any).bookmarked_questions);
+    }
+  }, [studentProfile]);
 
   // Solver Engine State
   const [sessionQuestions, setSessionQuestions] = useState<Question[]>([]);
@@ -383,16 +393,43 @@ export const AptitudeView: React.FC<AptitudeViewProps> = ({ studentProfile }) =>
     }
   };
 
-  const startPracticeSession = (module: 'quantitative' | 'logical' | 'verbal' | 'company', topic: string, mode: 'untimed' | 'timed' | 'company' | 'revision' | 'bookmark') => {
+  const startPracticeSession = async (module: 'quantitative' | 'logical' | 'verbal' | 'company', topic: string, mode: 'untimed' | 'timed' | 'company' | 'revision' | 'bookmark') => {
+    setSelectedTopicName(topic);
     setSelectedModule(module);
-    setSelectedTopic(topic);
     setSelectedMode(mode);
-    
-    const matches = topicsByModule[module]?.find(t => t.id === topic);
-    const name = matches ? matches.name : topic.toUpperCase();
-    setSelectedTopicName(name);
+    setCurrentQuestionIdx(0);
+    setUserAnswers({});
+    setSubmittedAnswers({});
+    setSecondsRemaining(mode === 'timed' ? 300 : 60);
 
-    setupSessionQuestions(module, topic, mode);
+    try {
+      let list: Question[] = [];
+      if (mode === 'bookmark') {
+        list = mockQuestions.filter(q => bookmarkedIds.includes(q.id));
+      } else if (mode === 'revision') {
+        list = mockQuestions.filter(q => wrongQuestionIds.includes(q.id));
+      } else {
+        const response = await apiClient.get<any[]>(`/aptitude/questions?category=${module}&topic=${topic}`);
+        list = response.data.map(q => ({
+          id: q.id,
+          category: q.category,
+          topic: q.topic,
+          question: q.question,
+          options: q.options,
+          correctAnswerIndex: q.correctAnswerIndex,
+          explanation: q.explanation
+        }));
+      }
+
+      if (!list || list.length === 0) {
+        setupSessionQuestions(module, topic, mode);
+      } else {
+        setSessionQuestions(list);
+      }
+    } catch (err) {
+      setupSessionQuestions(module, topic, mode);
+    }
+
     setActiveView('solving');
   };
 
@@ -456,6 +493,19 @@ export const AptitudeView: React.FC<AptitudeViewProps> = ({ studentProfile }) =>
     };
 
     setAttempts(prev => [newAttempt, ...prev]);
+    
+    // Post attempt to API to update database history logs & readiness scores
+    apiClient.post('/aptitude/attempts', {
+      email: studentProfile.personalEmail,
+      topic: selectedTopicName,
+      module: selectedModule,
+      score: scoreStr,
+      accuracy: Number(accuracyVal),
+      mode: newAttempt.mode,
+      questionsSolved: total,
+      timeSpent: newAttempt.timeSpent
+    }).catch(err => console.error("Failed to save attempt results on API", err));
+
     setStreak(prev => ({
       ...prev,
       solved: prev.solved + total,

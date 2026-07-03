@@ -212,3 +212,87 @@ export const useDashboardQuery = (email: string) => {
   });
 };
 
+/**
+ * Hook to retrieve aptitude questions for a specific category and topic.
+ */
+export const useAptitudeQuestionsQuery = (category: string, topic: string) => {
+  return useQuery({
+    queryKey: ['aptitude', 'questions', category, topic],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<any[]>(`/aptitude/questions?category=${category}&topic=${topic}`);
+        return response.data;
+      } catch (err) {
+        // Fallback: import mock questions from local file dynamically
+        const { mockQuestions } = await import('../components/AptitudeView');
+        return mockQuestions.filter((q: any) => q.category === category && q.topic === topic);
+      }
+    },
+    enabled: !!category && !!topic
+  });
+};
+
+/**
+ * Mutation to submit a completed aptitude practice session attempt.
+ */
+export const useSubmitAptitudeAttemptMutation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (payload: {
+      email: string;
+      topic: string;
+      module: string;
+      score: string;
+      accuracy: number;
+      mode: string;
+      questionsSolved: number;
+      timeSpent: string;
+    }) => {
+      const response = await apiClient.post('/aptitude/attempts', payload);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate profile query to update readiness scores and dashboard
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.profile(variables.email) });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', variables.email] });
+    }
+  });
+};
+
+/**
+ * Mutation to toggle bookmarks.
+ */
+export const useToggleBookmarkMutation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (payload: { email: string; questionId: string }) => {
+      const response = await apiClient.post('/aptitude/bookmarks/toggle', payload);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['aptitude', 'bookmarks', variables.email] });
+    }
+  });
+};
+
+/**
+ * Hook to retrieve bookmarked question IDs.
+ */
+export const useBookmarkedQuestionsQuery = (email: string) => {
+  return useQuery({
+    queryKey: ['aptitude', 'bookmarks', email],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<string[]>(`/aptitude/bookmarks?email=${email}`);
+        return response.data;
+      } catch (err) {
+        return [] as string[];
+      }
+    },
+    enabled: !!email
+  });
+};
+
+
