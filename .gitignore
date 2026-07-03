@@ -1,9 +1,12 @@
 # Dependencies
 node_modules/
 
-# Backend (not needed for frontend deployment)
-backend/
-
+# Backend Virtual Environment and Cache Exclusions
+backend/venv/
+backend/app/tests/.pytest_cache/
+backend/alembic/__pycache__/
+backend/app/__pycache__/
+backend/placement_portal.db
 # Build output
 dist/
 
