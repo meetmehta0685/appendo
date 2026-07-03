@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List
 
 class UserBase(BaseModel):
   email: EmailStr
@@ -7,16 +7,40 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
   password: str
 
-class UserResponse(UserBase):
-  id: int
-  is_active: bool
+class RoleResponse(BaseModel):
+  name: str
+  description: Optional[str] = None
 
   class Config:
     from_attributes = True
 
-class Token(BaseModel):
-  access_token: str
-  token_type: str
+import uuid
 
-class TokenData(BaseModel):
-  email: Optional[str] = None
+class UserResponse(UserBase):
+  id: uuid.UUID
+  is_active: bool
+  roles: List[RoleResponse] = []
+
+  class Config:
+    from_attributes = True
+
+class LoginPayload(BaseModel):
+  email: EmailStr
+  password: str
+
+class TokenResponse(BaseModel):
+  access_token: str
+  refresh_token: str
+  token_type: str = "bearer"
+  user: UserResponse
+
+class RefreshPayload(BaseModel):
+  refresh_token: str
+
+class ForgotPasswordPayload(BaseModel):
+  email: EmailStr
+
+class ResetPasswordPayload(BaseModel):
+  email: EmailStr
+  token: str
+  new_password: str = Field(..., min_length=6)

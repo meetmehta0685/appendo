@@ -25,7 +25,12 @@ async def get_current_user(
   if email is None:
     raise credentials_exception
 
-  result = await db.execute(select(User).where(User.email == email))
+  from sqlalchemy.orm import selectinload
+  result = await db.execute(
+      select(User)
+      .options(selectinload(User.roles))
+      .where(User.email == email)
+  )
   user = result.scalars().first()
   
   if user is None:
